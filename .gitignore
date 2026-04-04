@@ -1,0 +1,5 @@
+node_modules/
+logs/
+telegram-config.json
+update-config.json
+dist/

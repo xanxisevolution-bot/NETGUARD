@@ -1,0 +1,71 @@
+# NetGuard Auto-Update Guide
+# วิธีตั้งค่า GitHub สำหรับ Auto-Update
+
+## === SETUP (ทำครั้งเดียว) ===
+
+### Step 1: สร้าง GitHub Repository
+1. ไปที่ https://github.com/new
+2. Repository name: netguard-monitor (หรือชื่ออื่นก็ได้)
+3. เลือก Private (แนะนำ) หรือ Public
+4. กด Create repository
+
+### Step 2: ติดตั้ง Git บน PC
+- ดาวน์โหลด: https://git-scm.com/download/win
+- ติดตั้งแบบ default
+
+### Step 3: Push โค้ดขึ้น GitHub (ทำครั้งแรก)
+เปิด CMD ใน folder netguard-v2 แล้วพิมพ์:
+
+  git init
+  git add -A
+  git commit -m "v2.1.0 initial"
+  git remote add origin https://github.com/YOUR_USERNAME/netguard-monitor.git
+  git push -u origin main
+
+### Step 4: ตั้งค่าใน Dashboard
+1. เปิด NetGuard Dashboard
+2. เลื่อนลงไปที่ "Auto-Update"
+3. ใส่ GitHub Owner = YOUR_USERNAME
+4. ใส่ GitHub Repo = netguard-monitor
+5. กด Save
+
+
+## === ปล่อยอัพเดท (ทำทุกครั้งที่แก้โค้ด) ===
+
+### วิธีที่ 1: ผ่านเว็บ GitHub (ง่าย)
+1. แก้ไขไฟล์เสร็จ แล้ว push ขึ้น:
+   git add -A
+   git commit -m "v2.2.0 fix something"
+   git push
+
+2. ไปที่ GitHub repo > Releases > "Create a new release"
+3. Tag: v2.2.0 (ต้องตรงกับ version ใน package.json)
+4. Title: v2.2.0 - Fix something
+5. Description: ใส่รายละเอียดอัพเดท
+6. กด "Publish release"
+
+### วิธีที่ 2: ใช้ script (เร็ว)
+แก้ version ใน package.json แล้วรัน:
+
+  git add -A
+  git commit -m "v2.2.0"
+  git tag v2.2.0
+  git push
+  git push --tags
+
+แล้วไปสร้าง Release บนเว็บ GitHub
+
+
+## === เครื่องที่ร้านจะอัพเดทอย่างไร ===
+
+1. เปิด Dashboard
+2. เลื่อนไปที่ "Auto-Update"
+3. กด "Check Update"
+4. ถ้ามีเวอร์ชันใหม่ กด "Install Update"
+5. โปรแกรม restart อัตโนมัติ เสร็จ!
+
+
+## === หมายเหตุ ===
+- telegram-config.json และ logs/ จะไม่ถูกเขียนทับ (ข้อมูลไม่หาย)
+- ถ้า repo เป็น Private ต้องสร้าง Personal Access Token
+  ไปที่: GitHub > Settings > Developer settings > Personal access tokens

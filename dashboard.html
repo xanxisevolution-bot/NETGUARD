@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetGuard v2 — Internet Monitor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0B0E14;
+    --bg-secondary: #111620;
+    --bg-card: #161B27;
+    --bg-card-hover: #1C2233;
+    --border: #1E2538;
+    --border-light: #2A3350;
+    --gold: #C8A45A;
+    --gold-light: #E8CA7A;
+    --gold-dim: rgba(200,164,90,0.15);
+    --green: #34D399;
+    --green-dim: rgba(52,211,153,0.12);
+    --green-glow: rgba(52,211,153,0.4);
+    --red: #F87171;
+    --red-dim: rgba(248,113,113,0.12);
+    --red-glow: rgba(248,113,113,0.4);
+    --orange: #FBBF24;
+    --orange-dim: rgba(251,191,36,0.12);
+    --blue: #60A5FA;
+    --blue-dim: rgba(96,165,250,0.12);
+    --text-primary: #E8ECF4;
+    --text-secondary: #8892A8;
+    --text-muted: #5A6480;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200,164,90,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 100%, rgba(96,165,250,0.03) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: 0.12;
+    pointer-events: none;
+  }
+  .app { position: relative; z-index: 1; }
+
+  /* === HEADER === */
+  .header {
+    padding: 24px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    background: rgba(11,14,20,0.7);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-section { display: flex; align-items: center; gap: 14px; }
+  .logo-icon {
+    width: 42px; height: 42px;
+    border: 2px solid var(--gold); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--gold-dim);
+  }
+  .logo-icon svg { width: 20px; height: 20px; color: var(--gold); }
+  .logo-text h1 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+  .logo-text span { font-size: 10px; color: var(--text-muted); letter-spacing: 3px; text-transform: uppercase; font-weight: 500; }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    background: var(--green-dim); border: 1px solid rgba(52,211,153,0.2); border-radius: 100px;
+    font-size: 11px; font-weight: 700; color: var(--green); letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--green-glow); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 8px rgba(52,211,153,0); }
+  }
+  .version-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--gold); background: var(--gold-dim);
+    padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(200,164,90,0.2);
+  }
+  .clock { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-secondary); letter-spacing: 1px; }
+
+  .main { max-width: 1400px; margin: 0 auto; padding: 32px 40px; }
+
+  /* === DIAGNOSIS BAR === */
+  .diagnosis-bar {
+    padding: 20px 28px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    animation: fadeUp 0.5s ease;
+  }
+  .diagnosis-left { display: flex; align-items: center; gap: 16px; }
+  .diag-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.5s ease;
+  }
+  .diag-icon.online { background: var(--green-dim); border: 1px solid rgba(52,211,153,0.2); }
+  .diag-icon.offline { background: var(--red-dim); border: 1px solid rgba(248,113,113,0.2); animation: alertPulse 1.5s ease-in-out infinite; }
+  .diag-icon.warning { background: var(--orange-dim); border: 1px solid rgba(251,191,36,0.2); }
+  .diag-icon.checking { background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.2); }
+  @keyframes alertPulse {
+    0%,100% { box-shadow: 0 0 20px rgba(248,113,113,0.1); }
+    50% { box-shadow: 0 0 30px rgba(248,113,113,0.25); }
+  }
+  .diag-icon svg { width: 24px; height: 24px; }
+  .diag-text h2 { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; margin-bottom: 3px; transition: color 0.3s; }
+  .diag-text p { font-size: 13px; color: var(--text-secondary); }
+  .diagnosis-stats { display: flex; gap: 32px; }
+  .stat-item { text-align: center; }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+  .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
+
+  /* === DIAGNOSTIC FLOW === */
+  .flow-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px 28px; margin-bottom: 24px;
+    animation: fadeUp 0.5s ease 0.1s both;
+  }
+  .flow-title {
+    font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600;
+    color: var(--text-secondary); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .flow-title svg { width: 16px; height: 16px; color: var(--gold); }
+  .flow-chain {
+    display: flex; align-items: center; gap: 0;
+    overflow-x: auto; padding: 8px 0;
+  }
+  .flow-node {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    min-width: 140px; padding: 16px 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 14px;
+    transition: all 0.4s ease; position: relative;
+  }
+  .flow-node.online { border-color: rgba(52,211,153,0.3); background: var(--green-dim); }
+  .flow-node.offline { border-color: rgba(248,113,113,0.3); background: var(--red-dim); }
+  .flow-node.warning { border-color: rgba(251,191,36,0.3); background: var(--orange-dim); }
+  .flow-node.checking { border-color: rgba(96,165,250,0.3); background: var(--blue-dim); }
+  .flow-node.skipped { opacity: 0.4; }
+  .flow-node-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.05);
+  }
+  .flow-node-icon svg { width: 20px; height: 20px; }
+  .flow-node-label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-align: center; }
+  .flow-node-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+  }
+  .flow-node-status.online { color: var(--green); }
+  .flow-node-status.offline { color: var(--red); }
+  .flow-node-status.warning { color: var(--orange); }
+  .flow-node-status.checking { color: var(--blue); }
+  .flow-node-status.skipped { color: var(--text-muted); }
+  .flow-arrow {
+    font-size: 20px; color: var(--text-muted); margin: 0 6px; flex-shrink: 0;
+    transition: color 0.3s;
+  }
+  .flow-arrow.pass { color: var(--green); }
+  .flow-arrow.fail { color: var(--red); }
+
+  /* === DETAIL CARDS === */
+  .cards-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 20px; margin-bottom: 24px;
+  }
+  .detail-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px; position: relative; overflow: hidden;
+    transition: all 0.4s ease; animation: fadeUp 0.5s ease 0.2s both;
+  }
+  .detail-card:nth-child(2) { animation-delay: 0.25s; }
+  .detail-card:nth-child(3) { animation-delay: 0.3s; }
+  .detail-card:hover {
+    border-color: var(--border-light); background: var(--bg-card-hover);
+    transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .detail-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 18px 18px 0 0; transition: all 0.5s ease;
+  }
+  .detail-card.online::before { background: linear-gradient(90deg, var(--green), rgba(52,211,153,0.2)); }
+  .detail-card.offline::before { background: linear-gradient(90deg, var(--red), rgba(248,113,113,0.2)); }
+  .detail-card.warning::before { background: linear-gradient(90deg, var(--orange), rgba(251,191,36,0.2)); }
+  .detail-card.checking::before { background: linear-gradient(90deg, var(--blue), rgba(96,165,250,0.2)); }
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+  .card-head-left { display: flex; align-items: center; gap: 12px; }
+  .card-ico {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-ico svg { width: 20px; height: 20px; }
+  .card-ico.lan { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+  .card-ico.isp { background: rgba(168,85,247,0.12); color: #A855F7; border: 1px solid rgba(168,85,247,0.2); }
+  .card-name h3 { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+  .card-name p { font-size: 11px; color: var(--text-muted); }
+  .badge {
+    padding: 5px 12px; border-radius: 100px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    transition: all 0.4s;
+  }
+  .badge.online { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+  .badge.offline { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+  .badge.warning { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(251,191,36,0.2); }
+  .badge.checking { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+
+  /* Card info rows */
+  .info-rows { display: flex; flex-direction: column; gap: 8px; }
+  .info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  .info-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+  .info-value { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .info-value.good { color: var(--green); }
+  .info-value.bad { color: var(--red); }
+  .info-value.warn { color: var(--orange); }
+
+  /* === INCIDENT HISTORY === */
+  .incident-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px 28px; margin-bottom: 24px;
+    animation: fadeUp 0.5s ease 0.45s both;
+  }
+  .incident-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .incident-header h3 {
+    font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .incident-header h3 svg { width: 16px; height: 16px; color: var(--red); }
+  .incident-tabs { display: flex; gap: 6px; }
+  .incident-tab {
+    padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted); font-family: 'DM Sans', sans-serif;
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .incident-tab.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(200,164,90,0.3); }
+  .incident-tab:hover { border-color: var(--border-light); color: var(--text-secondary); }
+  .incident-list { max-height: 260px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+  .incident-empty { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
+  .incident-row {
+    display: grid; grid-template-columns: 100px 80px 1fr 100px 90px;
+    align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 3px;
+    border-left: 3px solid transparent; transition: background 0.2s;
+  }
+  .incident-row:hover { background: rgba(255,255,255,0.02); }
+  .incident-row.down { border-left-color: var(--red); }
+  .incident-row.resolved { border-left-color: var(--green); }
+  .incident-row.warning { border-left-color: var(--orange); }
+  .inc-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+  .inc-type {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px; text-align: center;
+  }
+  .inc-type.LAN { background: rgba(96,165,250,0.12); color: var(--blue); }
+  .inc-type.ISP { background: rgba(168,85,247,0.12); color: #A855F7; }
+  .inc-type.Router { background: var(--gold-dim); color: var(--gold); }
+  .inc-type.Unknown { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+  .inc-diag { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inc-downtime { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+  .inc-downtime.bad { color: var(--red); }
+  .inc-downtime.ok { color: var(--green); }
+  .inc-status { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .inc-status.down { color: var(--red); }
+  .inc-status.resolved { color: var(--green); }
+
+  /* === AUTO-UPDATE === */
+  .update-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px 28px; margin-bottom: 24px;
+    animation: fadeUp 0.5s ease 0.5s both;
+  }
+  .update-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .update-header h3 {
+    font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .update-header h3 svg { width: 16px; height: 16px; color: var(--green); }
+  .update-ver { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.04); padding: 4px 10px; border-radius: 6px; }
+  .update-form { display: flex; flex-direction: column; gap: 12px; }
+  .update-row { display: flex; align-items: center; gap: 12px; }
+  .update-row label { font-size: 12px; color: var(--text-secondary); min-width: 110px; }
+  .update-row input[type="text"] {
+    flex: 1; padding: 10px 14px; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none;
+  }
+  .update-row input:focus { border-color: var(--gold); }
+  .update-actions { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+  .upd-btn {
+    padding: 10px 24px; border-radius: 10px; border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .upd-btn.save { background: var(--gold-dim); color: var(--gold); border-color: rgba(200,164,90,0.3); }
+  .upd-btn.save:hover { background: rgba(200,164,90,0.25); }
+  .upd-btn.check { background: var(--green-dim); color: var(--green); border-color: rgba(52,211,153,0.2); }
+  .upd-btn.check:hover { background: rgba(52,211,153,0.2); }
+  .upd-btn.install { background: rgba(96,165,250,0.1); color: var(--blue); border-color: rgba(96,165,250,0.3); }
+  .upd-btn.install:hover { background: rgba(96,165,250,0.2); }
+  .upd-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .update-result {
+    padding: 14px 18px; border-radius: 12px; font-size: 13px;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+    display: none;
+  }
+  .update-result.show { display: block; }
+  .update-result.has-update { border-color: rgba(96,165,250,0.3); background: var(--blue-dim); }
+  .update-result.up-to-date { border-color: rgba(52,211,153,0.2); background: var(--green-dim); }
+  .update-result.error { border-color: rgba(248,113,113,0.2); background: var(--red-dim); }
+  .upd-msg { font-size: 12px; padding: 6px 0; min-height: 16px; color: var(--text-muted); }
+
+  /* === TELEGRAM SETTINGS === */
+  .tg-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px 28px; margin-bottom: 24px;
+    animation: fadeUp 0.5s ease 0.48s both;
+  }
+  .tg-header {
+    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+    user-select: none;
+  }
+  .tg-header h3 {
+    font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tg-header h3 svg { width: 16px; height: 16px; color: #29B6F6; }
+  .tg-toggle { font-size: 12px; color: var(--text-muted); transition: transform 0.3s; }
+  .tg-body { overflow: hidden; transition: max-height 0.4s ease; max-height: 600px; }
+  .tg-body.closed { max-height: 0; }
+  .tg-form { padding-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .tg-row { display: flex; align-items: center; gap: 12px; }
+  .tg-row label { font-size: 12px; color: var(--text-secondary); min-width: 110px; }
+  .tg-row input[type="text"], .tg-row input[type="number"] {
+    flex: 1; padding: 10px 14px; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .tg-row input:focus { border-color: var(--gold); }
+  .tg-checks { display: flex; gap: 16px; flex-wrap: wrap; padding: 4px 0; }
+  .tg-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+  .tg-check input { accent-color: var(--gold); width: 16px; height: 16px; cursor: pointer; }
+  .tg-actions { display: flex; gap: 10px; padding-top: 8px; }
+  .tg-btn {
+    padding: 10px 24px; border-radius: 10px; border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .tg-btn.save { background: var(--gold-dim); color: var(--gold); border-color: rgba(200,164,90,0.3); }
+  .tg-btn.save:hover { background: rgba(200,164,90,0.25); }
+  .tg-btn.test { background: rgba(41,182,246,0.1); color: #29B6F6; border-color: rgba(41,182,246,0.3); }
+  .tg-btn.test:hover { background: rgba(41,182,246,0.2); }
+  .tg-msg { font-size: 12px; padding: 8px 0; min-height: 20px; }
+  .tg-msg.ok { color: var(--green); }
+  .tg-msg.err { color: var(--red); }
+
+  /* === DAILY REPORT SUMMARY === */
+  .report-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 16px;
+  }
+  .report-stat {
+    padding: 14px 16px; background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border); border-radius: 12px; text-align: center;
+  }
+  .report-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; }
+  .report-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+
+  /* === SCAN BUTTON === */
+  .scan-wrap {
+    display: flex; justify-content: center; margin: 28px 0;
+    animation: fadeUp 0.5s ease 0.4s both;
+  }
+  .scan-btn {
+    padding: 14px 44px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: var(--bg-primary); border: none; border-radius: 14px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+    transition: all 0.3s; box-shadow: 0 4px 24px rgba(200,164,90,0.25);
+    position: relative; overflow: hidden;
+  }
+  .scan-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(200,164,90,0.35); }
+  .scan-btn:active { transform: translateY(0); }
+  .scan-btn.running {
+    background: var(--bg-card); border: 2px solid var(--gold); color: var(--gold); box-shadow: none;
+    pointer-events: none;
+  }
+
+  /* === LOG === */
+  .log-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px 28px; animation: fadeUp 0.5s ease 0.5s both;
+  }
+  .log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .log-header h3 {
+    font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .log-header h3 svg { width: 16px; height: 16px; color: var(--gold); }
+  .log-count { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.04); padding: 3px 10px; border-radius: 100px; font-family: 'JetBrains Mono', monospace; }
+  .log-entries { max-height: 220px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+  .log-entry { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; margin-bottom: 3px; transition: background 0.2s; animation: fadeIn 0.3s ease; }
+  .log-entry:hover { background: rgba(255,255,255,0.02); }
+  .log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .log-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+  .log-dot.err { background: var(--red); box-shadow: 0 0 6px var(--red-glow); }
+  .log-dot.warn { background: var(--orange); }
+  .log-dot.info { background: var(--blue); }
+  .log-text { flex: 1; font-size: 12px; color: var(--text-secondary); }
+  .log-time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  @media (max-width: 900px) {
+    .cards-grid { grid-template-columns: 1fr; }
+    .header { padding: 18px 20px; flex-wrap: wrap; gap: 12px; }
+    .main { padding: 20px 16px; }
+    .diagnosis-bar { flex-direction: column; gap: 16px; text-align: center; }
+    .flow-chain { flex-wrap: wrap; justify-content: center; }
+  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="logo-section">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+      </div>
+      <div class="logo-text">
+        <h1>NetGuard</h1>
+        <span>Internet Monitor</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div>Live</div>
+      <div class="version-badge">v2.0 REAL</div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Diagnosis Bar -->
+    <div class="diagnosis-bar">
+      <div class="diagnosis-left">
+        <div class="diag-icon checking" id="diagIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="diag-text">
+          <h2 id="diagTitle">Waiting for first scan...</h2>
+          <p id="diagDesc">Press scan button or wait for auto-check</p>
+        </div>
+      </div>
+      <div class="diagnosis-stats">
+        <div class="stat-item"><div class="stat-value" id="uptimeStat">--%</div><div class="stat-label">Uptime</div></div>
+        <div class="stat-item"><div class="stat-value" id="checksStat">0</div><div class="stat-label">Checks</div></div>
+        <div class="stat-item"><div class="stat-value" id="latencyStat">--</div><div class="stat-label">Latency</div></div>
+      </div>
+    </div>
+
+    <!-- Diagnostic Flow Chain -->
+    <div class="flow-section">
+      <div class="flow-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Diagnostic Flow
+      </div>
+      <div class="flow-chain" id="flowChain">
+        <div class="flow-node checking" id="flow-pc">
+          <div class="flow-node-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+          <div class="flow-node-label">PC</div>
+          <div class="flow-node-status checking" id="flow-pc-status">WAIT</div>
+        </div>
+        <div class="flow-arrow" id="arrow1">&#8594;</div>
+        <div class="flow-node checking" id="flow-lan">
+          <div class="flow-node-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+          <div class="flow-node-label">LAN Cable</div>
+          <div class="flow-node-status checking" id="flow-lan-status">WAIT</div>
+        </div>
+        <div class="flow-arrow" id="arrow2">&#8594;</div>
+        <div class="flow-node checking" id="flow-router">
+          <div class="flow-node-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="14" width="20" height="7" rx="2"/><path d="M6.5 14V8a5.5 5.5 0 0 1 11 0v6"/><circle cx="12" cy="17.5" r="1"/></svg></div>
+          <div class="flow-node-label">Router</div>
+          <div class="flow-node-status checking" id="flow-router-status">WAIT</div>
+        </div>
+        <div class="flow-arrow" id="arrow3">&#8594;</div>
+        <div class="flow-node checking" id="flow-isp">
+          <div class="flow-node-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <div class="flow-node-label">ISP</div>
+          <div class="flow-node-status checking" id="flow-isp-status">WAIT</div>
+        </div>
+        <div class="flow-arrow" id="arrow4">&#8594;</div>
+        <div class="flow-node checking" id="flow-internet">
+          <div class="flow-node-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+          <div class="flow-node-label">Internet</div>
+          <div class="flow-node-status checking" id="flow-internet-status">WAIT</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Cards -->
+    <div class="cards-grid">
+      <!-- LAN Card -->
+      <div class="detail-card checking" id="card-lan">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-ico lan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+            <div class="card-name"><h3>LAN Cable</h3><p>Network Interface</p></div>
+          </div>
+          <div class="badge checking" id="badge-lan">CHECKING</div>
+        </div>
+        <div class="info-rows">
+          <div class="info-row"><span class="info-label">Status</span><span class="info-value" id="lan-status">--</span></div>
+          <div class="info-row"><span class="info-label">Interface</span><span class="info-value" id="lan-iface">--</span></div>
+          <div class="info-row"><span class="info-label">IP Address</span><span class="info-value" id="lan-ip">--</span></div>
+          <div class="info-row"><span class="info-label">MAC</span><span class="info-value" id="lan-mac">--</span></div>
+        </div>
+      </div>
+
+      <!-- ISP Card -->
+      <div class="detail-card checking" id="card-isp">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-ico isp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+            <div class="card-name"><h3>ISP Provider</h3><p>Internet Service</p></div>
+          </div>
+          <div class="badge checking" id="badge-isp">CHECKING</div>
+        </div>
+        <div class="info-rows">
+          <div class="info-row"><span class="info-label">DNS Primary</span><span class="info-value" id="isp-dns">--</span></div>
+          <div class="info-row"><span class="info-label">Latency</span><span class="info-value" id="isp-latency">--</span></div>
+          <div class="info-row"><span class="info-label">Packet Loss</span><span class="info-value" id="isp-loss">--</span></div>
+          <div class="info-row"><span class="info-label">Router Ping</span><span class="info-value" id="isp-router">--</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan Button -->
+    <div class="scan-wrap">
+      <button class="scan-btn" id="scanBtn" onclick="scanAll()">SCAN NOW</button>
+    </div>
+
+    <!-- Incident History -->
+    <div class="incident-section">
+      <div class="incident-header">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Incident History
+        </h3>
+        <div class="incident-tabs">
+          <button class="incident-tab active" onclick="loadIncidents(1, this)">Today</button>
+          <button class="incident-tab" onclick="loadIncidents(3, this)">3 Days</button>
+          <button class="incident-tab" onclick="loadIncidents(7, this)">7 Days</button>
+          <button class="incident-tab" onclick="loadIncidents(30, this)">30 Days</button>
+        </div>
+      </div>
+
+      <!-- Daily Summary -->
+      <div class="report-bar" id="reportBar">
+        <div class="report-stat"><div class="report-stat-value" id="rptUptime">--%</div><div class="report-stat-label">Uptime</div></div>
+        <div class="report-stat"><div class="report-stat-value" id="rptIncidents">--</div><div class="report-stat-label">Incidents</div></div>
+        <div class="report-stat"><div class="report-stat-value" id="rptDowntime">--</div><div class="report-stat-label">Total Downtime</div></div>
+        <div class="report-stat"><div class="report-stat-value" id="rptScans">--</div><div class="report-stat-label">Total Scans</div></div>
+      </div>
+
+      <!-- Incident List -->
+      <div class="incident-list" id="incidentList">
+        <div class="incident-empty">No incidents recorded yet. Data will appear after scans detect problems.</div>
+      </div>
+    </div>
+
+    <!-- Auto-Update -->
+    <div class="update-section">
+      <div class="update-header">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          Auto-Update
+        </h3>
+        <span class="update-ver" id="currentVer">v--</span>
+      </div>
+      <div class="update-form">
+        <div class="update-row">
+          <label>GitHub Owner</label>
+          <input type="text" id="updOwner" placeholder="your-username" />
+        </div>
+        <div class="update-row">
+          <label>GitHub Repo</label>
+          <input type="text" id="updRepo" placeholder="netguard-monitor" />
+        </div>
+        <div class="update-actions">
+          <button class="upd-btn save" onclick="saveUpdateConfig()">Save</button>
+          <button class="upd-btn check" onclick="checkUpdate()">Check Update</button>
+          <button class="upd-btn install" id="installBtn" onclick="installUpdate()" disabled>Install Update</button>
+        </div>
+        <div class="upd-msg" id="updMsg"></div>
+        <div class="update-result" id="updResult"></div>
+      </div>
+    </div>
+
+    <!-- Telegram Settings -->
+    <div class="tg-section">
+      <div class="tg-header" onclick="toggleTelegram()">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7.5a2.25 2.25 0 0 0 .126 4.303l4.924 1.77 2.27 6.604a1.06 1.06 0 0 0 1.81.305l2.442-2.84 4.76 3.584a2.25 2.25 0 0 0 3.465-1.26l3.485-15.27a2.25 2.25 0 0 0-1.96-2.661Z"/></svg>
+          Telegram Notifications
+        </h3>
+        <span class="tg-toggle" id="tgToggle">&#9650; Close</span>
+      </div>
+      <div class="tg-body" id="tgBody">
+        <div class="tg-form">
+          <div class="tg-row">
+            <label>Bot Token</label>
+            <input type="text" id="tgToken" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
+          </div>
+          <div class="tg-row">
+            <label>Chat ID</label>
+            <input type="text" id="tgChatId" placeholder="123456789" />
+          </div>
+          <div class="tg-row">
+            <label>Cooldown (min)</label>
+            <input type="number" id="tgCooldown" value="2" min="0" max="60" style="max-width:80px" />
+          </div>
+          <div class="tg-row">
+            <label>Notify When</label>
+            <div class="tg-checks">
+              <label class="tg-check"><input type="checkbox" id="tgDown" checked /> Down Alert</label>
+              <label class="tg-check"><input type="checkbox" id="tgRestore" checked /> Restored</label>
+            </div>
+          </div>
+          <div class="tg-actions">
+            <button class="tg-btn save" onclick="saveTelegram()">Save Settings</button>
+            <button class="tg-btn test" onclick="testTelegram()">Send Test Message</button>
+          </div>
+          <div class="tg-msg" id="tgMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-section">
+      <div class="log-header">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Activity Log</h3>
+        <div class="log-count" id="logCount">0 entries</div>
+      </div>
+      <div class="log-entries" id="logEntries">
+        <div class="log-entry"><div class="log-dot info"></div><div class="log-text">System ready - waiting for first scan</div><div class="log-time" id="initTime">--:--:--</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = window.location.origin;
+let logs = [];
+let scanning = false;
+let autoInterval = null;
+
+// ── Init ──
+function init() {
+  updateClock();
+  setInterval(updateClock, 1000);
+  document.getElementById('initTime').textContent = timeNow();
+  setTimeout(scanAll, 500);
+  autoInterval = setInterval(scanAll, 10000);
+  // Load incident history
+  setTimeout(() => loadIncidents(1), 1500);
+  // Load Telegram settings
+  setTimeout(() => loadTelegramConfig(), 2000);
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString('th-TH', { hour12: false });
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = timeNow();
+}
+
+// ============================================================
+//  SCAN ALL — calls backend /api/diagnose
+// ============================================================
+async function scanAll() {
+  if (scanning) return;
+  scanning = true;
+
+  const btn = document.getElementById('scanBtn');
+  btn.classList.add('running');
+  btn.textContent = 'SCANNING...';
+
+  // Set all to checking
+  setFlowStatus('all', 'checking');
+  setCardState('lan', 'checking');
+  setCardState('isp', 'checking');
+  setDiagStatus('checking', 'Scanning...', 'Running sequential diagnostics...');
+  addLog('info', '--- Starting diagnostic scan ---');
+
+  try {
+    const res = await fetch(API + '/api/diagnose');
+    const data = await res.json();
+
+    // ── Update Flow Chain ──
+    // PC is always online (we are running)
+    setFlowNode('pc', 'online', 'OK');
+    setArrow('arrow1', data.lan.status === 'online' ? 'pass' : 'fail');
+
+    // LAN
+    setFlowNode('lan', data.lan.status, statusLabel(data.lan.status));
+    setArrow('arrow2', data.lan.status === 'online' ? (data.router.status === 'online' ? 'pass' : 'fail') : 'fail');
+
+    // Router
+    if (data.lan.status !== 'online') {
+      setFlowNode('router', 'skipped', 'SKIP');
+      setFlowNode('isp', 'skipped', 'SKIP');
+      setFlowNode('internet', 'skipped', 'SKIP');
+      setArrow('arrow3', '');
+      setArrow('arrow4', '');
+    } else {
+      setFlowNode('router', data.router.status, statusLabel(data.router.status));
+      setArrow('arrow3', data.router.status === 'online' ? (data.isp.status === 'online' ? 'pass' : 'fail') : 'fail');
+
+      if (data.router.status !== 'online') {
+        setFlowNode('isp', 'skipped', 'SKIP');
+        setFlowNode('internet', 'skipped', 'SKIP');
+        setArrow('arrow4', '');
+      } else {
+        setFlowNode('isp', data.isp.status, statusLabel(data.isp.status));
+        setArrow('arrow4', data.isp.status === 'online' ? 'pass' : 'fail');
+        setFlowNode('internet', data.isp.status === 'online' ? 'online' : data.isp.status, 
+                     data.isp.status === 'online' ? 'OK' : statusLabel(data.isp.status));
+      }
+    }
+
+    // ── Update LAN Card ──
+    setCardState('lan', data.lan.status);
+    updateBadge('badge-lan', data.lan.status);
+    if (data.lan.status === 'online' && data.lan.interfaces.length > 0) {
+      const iface = data.lan.interfaces[0];
+      setVal('lan-status', 'Connected', 'good');
+      setVal('lan-iface', iface.name);
+      setVal('lan-ip', iface.ip);
+      setVal('lan-mac', iface.mac);
+      addLog('ok', 'LAN: Connected - ' + iface.ip + ' (' + iface.name + ')');
+    } else {
+      setVal('lan-status', 'DISCONNECTED', 'bad');
+      setVal('lan-iface', '--');
+      setVal('lan-ip', '--');
+      setVal('lan-mac', '--');
+      addLog('err', 'LAN: Cable disconnected or adapter down!');
+    }
+
+    // ── Update ISP Card ──
+    setCardState('isp', data.isp.status);
+    updateBadge('badge-isp', data.isp.status);
+    if (data.isp.status === 'online') {
+      setVal('isp-dns', '8.8.8.8', 'good');
+      setVal('isp-latency', data.isp.latency || '--', 'good');
+      setVal('isp-loss', data.isp.packetLoss || '0%', 'good');
+      setVal('isp-router', data.router.latency || '--', data.router.status === 'online' ? 'good' : 'bad');
+      addLog('ok', 'ISP: Online - Latency ' + (data.isp.latency || 'N/A'));
+    } else if (data.isp.status === 'warning') {
+      setVal('isp-dns', 'Unstable', 'warn');
+      setVal('isp-latency', data.isp.latency || '--', 'warn');
+      setVal('isp-loss', data.isp.packetLoss || '--', 'warn');
+      setVal('isp-router', data.router.latency || '--');
+      addLog('warn', 'ISP: ' + data.isp.message);
+    } else {
+      setVal('isp-dns', data.lan.status !== 'online' ? 'No LAN' : (data.router.status !== 'online' ? 'No Router' : 'FAILED'), 'bad');
+      setVal('isp-latency', '--', 'bad');
+      setVal('isp-loss', data.lan.status === 'online' ? '100%' : '--', 'bad');
+      setVal('isp-router', data.router.status === 'online' ? data.router.latency || 'OK' : 'FAILED', data.router.status === 'online' ? 'good' : 'bad');
+      addLog('err', 'ISP: ' + data.isp.message);
+    }
+
+    // ── Update Diagnosis ──
+    setDiagStatus(data.overall, diagTitleText(data.overall), data.diagnosis);
+    document.getElementById('latencyStat').textContent = data.isp.latency || '--';
+
+    // ── Update Stats ──
+    const statsRes = await fetch(API + '/api/stats');
+    const stats = await statsRes.json();
+    document.getElementById('uptimeStat').textContent = stats.uptime + '%';
+    document.getElementById('checksStat').textContent = stats.totalChecks;
+
+    addLog('info', '--- Scan complete (' + data.duration + 'ms) ---');
+
+  } catch (err) {
+    setDiagStatus('offline', 'Backend Error', 'Cannot reach NetGuard server: ' + err.message);
+    addLog('err', 'ERROR: ' + err.message);
+  }
+
+  btn.classList.remove('running');
+  btn.textContent = 'SCAN NOW';
+  scanning = false;
+
+  // Refresh incident history
+  const activeTab = document.querySelector('.incident-tab.active');
+  const days = activeTab ? parseInt(activeTab.textContent) || 1 : 1;
+  loadIncidents(days);
+}
+
+// ============================================================
+//  UI Helpers
+// ============================================================
+function statusLabel(s) {
+  return { online: 'OK', offline: 'FAIL', warning: 'WARN', checking: '...', skipped: 'SKIP' }[s] || s;
+}
+
+function diagTitleText(s) {
+  return {
+    online: 'All Systems Operational',
+    offline: 'Problem Detected',
+    warning: 'Warning',
+    checking: 'Scanning...',
+  }[s] || s;
+}
+
+function setFlowNode(id, status, label) {
+  const node = document.getElementById('flow-' + id);
+  const statusEl = document.getElementById('flow-' + id + '-status');
+  if (node) { node.className = 'flow-node ' + status; }
+  if (statusEl) { statusEl.className = 'flow-node-status ' + status; statusEl.textContent = label; }
+}
+
+function setFlowStatus(target, status) {
+  if (target === 'all') {
+    ['pc','lan','router','isp','internet'].forEach(n => setFlowNode(n, status, '...'));
+  }
+}
+
+function setArrow(id, type) {
+  const el = document.getElementById(id);
+  if (el) { el.className = 'flow-arrow' + (type ? ' ' + type : ''); }
+}
+
+function setCardState(id, status) {
+  const card = document.getElementById('card-' + id);
+  if (card) card.className = 'detail-card ' + status;
+}
+
+function updateBadge(id, status) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'badge ' + status;
+  el.textContent = { online: 'ONLINE', offline: 'OFFLINE', warning: 'WARNING', checking: 'CHECKING' }[status] || status;
+}
+
+function setVal(id, value, colorClass) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value;
+  el.className = 'info-value' + (colorClass ? ' ' + colorClass : '');
+}
+
+function setDiagStatus(status, title, desc) {
+  const icon = document.getElementById('diagIcon');
+  const titleEl = document.getElementById('diagTitle');
+  const descEl = document.getElementById('diagDesc');
+
+  icon.className = 'diag-icon ' + status;
+  titleEl.textContent = title;
+  titleEl.style.color = { online: 'var(--green)', offline: 'var(--red)', warning: 'var(--orange)', checking: 'var(--blue)' }[status] || '';
+  descEl.textContent = desc;
+
+  const svgMap = {
+    online: '<svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+    offline: '<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    checking: '<svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  };
+  icon.innerHTML = svgMap[status] || svgMap.checking;
+}
+
+function addLog(type, text) {
+  logs.unshift({ type, text, time: timeNow() });
+  if (logs.length > 50) logs.pop();
+  const container = document.getElementById('logEntries');
+  container.innerHTML = logs.map(e => `
+    <div class="log-entry">
+      <div class="log-dot ${e.type === 'ok' ? 'ok' : e.type === 'err' ? 'err' : e.type === 'warn' ? 'warn' : 'info'}"></div>
+      <div class="log-text">${e.text}</div>
+      <div class="log-time">${e.time}</div>
+    </div>
+  `).join('');
+  document.getElementById('logCount').textContent = logs.length + ' entries';
+}
+
+// ============================================================
+//  INCIDENT HISTORY & REPORT
+// ============================================================
+async function loadIncidents(days, tabEl) {
+  // Update active tab
+  if (tabEl) {
+    document.querySelectorAll('.incident-tab').forEach(t => t.classList.remove('active'));
+    tabEl.classList.add('active');
+  }
+
+  try {
+    // Load incidents
+    const incRes = await fetch(API + '/api/incidents?days=' + days);
+    const incData = await incRes.json();
+
+    // Load report
+    const rptRes = await fetch(API + '/api/report?days=' + days);
+    const rptData = await rptRes.json();
+
+    // Update report summary
+    if (rptData.report && rptData.report.length > 0) {
+      // Aggregate across all days
+      let totalScans = 0, totalOnline = 0, totalInc = 0, totalDownSec = 0;
+      rptData.report.forEach(r => {
+        totalScans += r.totalScans;
+        totalOnline += r.onlineScans;
+        totalInc += r.incidentCount;
+        totalDownSec += r.totalDowntimeSeconds;
+      });
+      const upPct = totalScans > 0 ? ((totalOnline / totalScans) * 100).toFixed(1) : '--';
+      document.getElementById('rptUptime').textContent = upPct + '%';
+      document.getElementById('rptUptime').style.color = parseFloat(upPct) >= 99 ? 'var(--green)' : parseFloat(upPct) >= 95 ? 'var(--orange)' : 'var(--red)';
+      document.getElementById('rptIncidents').textContent = totalInc;
+      document.getElementById('rptIncidents').style.color = totalInc === 0 ? 'var(--green)' : 'var(--red)';
+      document.getElementById('rptDowntime').textContent = formatDowntime(totalDownSec);
+      document.getElementById('rptScans').textContent = totalScans;
+    }
+
+    // Update incident list
+    const list = document.getElementById('incidentList');
+    if (incData.incidents.length === 0) {
+      list.innerHTML = '<div class="incident-empty">No incidents in the last ' + days + ' day(s). All clear!</div>';
+      return;
+    }
+
+    list.innerHTML = incData.incidents.map(inc => {
+      const time = new Date(inc.time).toLocaleString('th-TH', { hour12: false, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const isDown = inc.event === 'DOWN';
+      const typeClass = (inc.type || '').replace('-Unstable', '');
+      return `
+        <div class="incident-row ${isDown ? 'down' : 'resolved'}">
+          <div class="inc-time">${time}</div>
+          <div class="inc-type ${typeClass}">${inc.type || '?'}</div>
+          <div class="inc-diag">${inc.diagnosis || '--'}</div>
+          <div class="inc-downtime ${isDown ? 'bad' : 'ok'}">${inc.downtime || '--'}</div>
+          <div class="inc-status ${isDown ? 'down' : 'resolved'}">${isDown ? 'DOWN' : 'RESOLVED'}</div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    document.getElementById('incidentList').innerHTML = '<div class="incident-empty">Cannot load history: ' + err.message + '</div>';
+  }
+}
+
+function formatDowntime(sec) {
+  if (!sec || sec === 0) return '0s';
+  if (sec < 60) return sec + 's';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m < 60) return m + 'm ' + s + 's';
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  if (h < 24) return h + 'h ' + rm + 'm';
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return d + 'd ' + rh + 'h';
+}
+
+// Refresh incidents after each scan
+const origScanAll = scanAll;
+// (incidents auto-refresh is handled inside scanAll's finally block)
+
+// ============================================================
+//  AUTO-UPDATE
+// ============================================================
+let pendingDownloadUrl = null;
+
+async function loadUpdateConfig() {
+  try {
+    const res = await fetch(API + '/api/update/config');
+    const data = await res.json();
+    document.getElementById('updOwner').value = data.githubOwner || '';
+    document.getElementById('updRepo').value = data.githubRepo || '';
+    document.getElementById('currentVer').textContent = 'v' + (data.currentVersion || '?');
+  } catch (e) {}
+}
+
+async function saveUpdateConfig() {
+  const msgEl = document.getElementById('updMsg');
+  try {
+    await fetch(API + '/api/update/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        githubOwner: document.getElementById('updOwner').value.trim(),
+        githubRepo: document.getElementById('updRepo').value.trim(),
+      }),
+    });
+    msgEl.textContent = 'Saved!';
+    msgEl.style.color = 'var(--green)';
+    addLog('ok', 'Update config saved');
+  } catch (e) {
+    msgEl.textContent = 'Error: ' + e.message;
+    msgEl.style.color = 'var(--red)';
+  }
+}
+
+async function checkUpdate() {
+  const msgEl = document.getElementById('updMsg');
+  const resultEl = document.getElementById('updResult');
+  const installBtn = document.getElementById('installBtn');
+
+  msgEl.textContent = 'Checking GitHub...';
+  msgEl.style.color = 'var(--text-muted)';
+  resultEl.className = 'update-result';
+  installBtn.disabled = true;
+  pendingDownloadUrl = null;
+
+  try {
+    const res = await fetch(API + '/api/update/check');
+    const data = await res.json();
+
+    if (data.error) {
+      msgEl.textContent = '';
+      resultEl.className = 'update-result show error';
+      resultEl.innerHTML = 'Error: ' + data.error;
+      return;
+    }
+
+    if (data.hasUpdate) {
+      msgEl.textContent = '';
+      resultEl.className = 'update-result show has-update';
+      resultEl.innerHTML =
+        '<div style="margin-bottom:8px"><b style="color:var(--blue)">New version available!</b></div>' +
+        '<div style="display:flex;gap:20px;margin-bottom:8px;font-family:JetBrains Mono,monospace;font-size:12px">' +
+          '<span>Current: <b>' + data.currentVersion + '</b></span>' +
+          '<span>Latest: <b style="color:var(--green)">' + data.latestVersion + '</b></span>' +
+        '</div>' +
+        (data.releaseName ? '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">' + data.releaseName + '</div>' : '') +
+        (data.releaseNotes ? '<div style="font-size:11px;color:var(--text-muted);white-space:pre-wrap;max-height:80px;overflow:auto">' + data.releaseNotes + '</div>' : '');
+      
+      pendingDownloadUrl = data.downloadUrl;
+      installBtn.disabled = false;
+      addLog('info', 'Update available: v' + data.latestVersion);
+    } else {
+      msgEl.textContent = '';
+      resultEl.className = 'update-result show up-to-date';
+      resultEl.innerHTML = '<span style="color:var(--green)">You are on the latest version (v' + data.currentVersion + ')</span>';
+      addLog('ok', 'Already up to date: v' + data.currentVersion);
+    }
+  } catch (e) {
+    msgEl.textContent = '';
+    resultEl.className = 'update-result show error';
+    resultEl.innerHTML = 'Cannot check: ' + e.message;
+  }
+}
+
+async function installUpdate() {
+  if (!pendingDownloadUrl) return;
+
+  const msgEl = document.getElementById('updMsg');
+  const installBtn = document.getElementById('installBtn');
+  installBtn.disabled = true;
+  msgEl.textContent = 'Downloading and installing...';
+  msgEl.style.color = 'var(--blue)';
+  addLog('info', 'Installing update...');
+
+  try {
+    const res = await fetch(API + '/api/update/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ downloadUrl: pendingDownloadUrl }),
+    });
+    const data = await res.json();
+    
+    if (data.ok) {
+      msgEl.textContent = 'Update installed! App will restart in a few seconds...';
+      msgEl.style.color = 'var(--green)';
+      addLog('ok', 'Update installed - restarting...');
+      
+      // Try to reconnect after restart
+      setTimeout(() => {
+        msgEl.textContent = 'Reconnecting...';
+        const retryInterval = setInterval(async () => {
+          try {
+            const r = await fetch(API + '/api/version');
+            if (r.ok) {
+              clearInterval(retryInterval);
+              window.location.reload();
+            }
+          } catch {}
+        }, 2000);
+      }, 5000);
+    } else {
+      msgEl.textContent = 'Failed: ' + (data.error || 'Unknown error');
+      msgEl.style.color = 'var(--red)';
+      installBtn.disabled = false;
+    }
+  } catch (e) {
+    msgEl.textContent = 'Error: ' + e.message;
+    msgEl.style.color = 'var(--red)';
+    installBtn.disabled = false;
+  }
+}
+
+// Load update config on init
+setTimeout(() => loadUpdateConfig(), 1000);
+
+// ============================================================
+//  TELEGRAM SETTINGS
+// ============================================================
+let tgOpen = true;
+
+function toggleTelegram() {
+  tgOpen = !tgOpen;
+  document.getElementById('tgBody').classList.toggle('closed', !tgOpen);
+  document.getElementById('tgToggle').innerHTML = tgOpen ? '&#9650; Close' : '&#9660; Open';
+  if (tgOpen) loadTelegramConfig();
+}
+
+async function loadTelegramConfig() {
+  try {
+    const res = await fetch(API + '/api/telegram');
+    const data = await res.json();
+    if (data.botToken) document.getElementById('tgToken').placeholder = 'Saved: ' + data.botToken;
+    if (data.chatId) document.getElementById('tgChatId').value = data.chatId;
+    document.getElementById('tgCooldown').value = data.cooldownMinutes || 2;
+    document.getElementById('tgDown').checked = data.notifyDown !== false;
+    document.getElementById('tgRestore').checked = data.notifyRestore !== false;
+  } catch (e) {}
+}
+
+async function saveTelegram() {
+  const msgEl = document.getElementById('tgMsg');
+  msgEl.textContent = 'Saving...';
+  msgEl.className = 'tg-msg';
+
+  const body = {
+    enabled: true,
+    botToken: document.getElementById('tgToken').value.trim(),
+    chatId: document.getElementById('tgChatId').value.trim(),
+    cooldownMinutes: parseInt(document.getElementById('tgCooldown').value) || 2,
+    notifyDown: document.getElementById('tgDown').checked,
+    notifyRestore: document.getElementById('tgRestore').checked,
+  };
+
+  // Don't send empty token (keep existing)
+  if (!body.botToken) delete body.botToken;
+
+  try {
+    const res = await fetch(API + '/api/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    msgEl.textContent = 'Saved successfully!';
+    msgEl.className = 'tg-msg ok';
+    addLog('ok', 'Telegram settings saved');
+  } catch (e) {
+    msgEl.textContent = 'Error: ' + e.message;
+    msgEl.className = 'tg-msg err';
+  }
+}
+
+async function testTelegram() {
+  const msgEl = document.getElementById('tgMsg');
+  msgEl.textContent = 'Sending test message...';
+  msgEl.className = 'tg-msg';
+
+  try {
+    const res = await fetch(API + '/api/telegram/test', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      msgEl.textContent = 'Test message sent! Check your Telegram.';
+      msgEl.className = 'tg-msg ok';
+      addLog('ok', 'Telegram test message sent');
+    } else {
+      msgEl.textContent = 'Failed: ' + (data.message || 'Check token & chat ID');
+      msgEl.className = 'tg-msg err';
+    }
+  } catch (e) {
+    msgEl.textContent = 'Error: ' + e.message;
+    msgEl.className = 'tg-msg err';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
