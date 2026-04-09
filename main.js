@@ -148,3 +148,10 @@ app.on('second-instance', () => showWindow());
 app.on('window-all-closed', () => { /* keep running in tray */ });
 app.on('before-quit', () => { isQuitting = true; });
 app.on('activate', () => { if (!mainWindow) createWindow(); });
+
+// ── Restart after update ──
+process.on('netguard-restart', () => {
+  isQuitting = true;
+  app.relaunch();
+  app.quit();
+});

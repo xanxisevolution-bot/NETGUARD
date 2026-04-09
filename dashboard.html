@@ -330,6 +330,41 @@
   .update-result.error { border-color: rgba(248,113,113,0.2); background: var(--red-dim); }
   .upd-msg { font-size: 12px; padding: 6px 0; min-height: 16px; color: var(--text-muted); }
 
+  /* Update tabs */
+  .upd-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  .upd-tab {
+    padding: 6px 16px; border-radius: 8px; border: 1px solid transparent;
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; color: var(--text-muted); background: transparent;
+  }
+  .upd-tab.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(200,164,90,0.3); }
+  .upd-tab:hover:not(.active) { color: var(--text-secondary); border-color: var(--border-light); }
+  .upd-panel { display: none; }
+  .upd-panel.active { display: flex; flex-direction: column; gap: 12px; }
+
+  /* File drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border-light); border-radius: 14px;
+    padding: 32px 20px; text-align: center; cursor: pointer;
+    transition: all 0.3s; position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--gold); background: var(--gold-dim); }
+  .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .drop-zone-icon { font-size: 28px; margin-bottom: 8px; }
+  .drop-zone-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .drop-zone-sub { font-size: 11px; color: var(--text-muted); }
+  .drop-zone-file {
+    padding: 10px 14px; background: var(--green-dim); border: 1px solid rgba(52,211,153,0.2);
+    border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--green); margin-top: 10px; display: none;
+  }
+  /* Upload progress */
+  .upd-progress { display: none; }
+  .upd-progress.show { display: block; }
+  .upd-progress-bar-wrap { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; margin: 8px 0; }
+  .upd-progress-bar { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius: 3px; transition: width 0.3s; width: 0%; }
+  .upd-progress-text { font-size: 11px; color: var(--text-muted); text-align: center; }
+
   /* === TELEGRAM SETTINGS === */
   .tg-section {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
@@ -444,6 +479,88 @@
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 10px; }
+
+  /* === IP CONFLICT DETECTION === */
+  .conflict-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px 28px; margin-bottom: 24px;
+    animation: fadeUp 0.5s ease 0.35s both;
+  }
+  .conflict-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .conflict-header h3 {
+    font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .conflict-header h3 svg { width: 16px; height: 16px; color: var(--orange); }
+  .conflict-actions { display: flex; align-items: center; gap: 10px; }
+  .conflict-btn {
+    padding: 7px 18px; border-radius: 10px; border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .conflict-btn.quick { background: var(--blue-dim); color: var(--blue); border-color: rgba(96,165,250,0.3); }
+  .conflict-btn.quick:hover { background: rgba(96,165,250,0.2); }
+  .conflict-btn.scan { background: var(--orange-dim); color: var(--orange); border-color: rgba(251,191,36,0.2); }
+  .conflict-btn.scan:hover { background: rgba(251,191,36,0.2); }
+  .conflict-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .conflict-status-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: 12px; margin-bottom: 16px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .conflict-status-bar.clean { border-color: rgba(52,211,153,0.2); background: var(--green-dim); }
+  .conflict-status-bar.found { border-color: rgba(248,113,113,0.2); background: var(--red-dim); }
+  .conflict-status-bar.scanning { border-color: rgba(96,165,250,0.2); background: var(--blue-dim); }
+  .conflict-status-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .conflict-status-icon svg { width: 16px; height: 16px; }
+  .conflict-status-text { flex: 1; }
+  .conflict-status-title { font-weight: 600; font-size: 13px; }
+  .conflict-status-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .conflict-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+  .conflict-list { display: flex; flex-direction: column; gap: 8px; }
+  .conflict-item {
+    padding: 14px 18px; border-radius: 12px;
+    border: 1px solid rgba(248,113,113,0.25); background: var(--red-dim);
+  }
+  .conflict-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .conflict-item-ip, .conflict-ip {
+    font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700;
+    color: var(--red);
+  }
+  .conflict-item-own {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 3px 9px;
+    border-radius: 6px; background: rgba(248,113,113,0.2); color: var(--red);
+    border: 1px solid rgba(248,113,113,0.3);
+  }
+  .conflict-macs { display: flex; flex-direction: column; gap: 5px; }
+  .conflict-mac-row { display: flex; align-items: center; gap: 10px; }
+  .conflict-mac-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); }
+  .conflict-mac-src {
+    font-size: 10px; padding: 2px 7px; border-radius: 5px; letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.05); color: var(--text-muted);
+  }
+  .conflict-mac-src.local { background: rgba(96,165,250,0.12); color: var(--blue); }
+  .arp-table-wrap { margin-top: 12px; }
+  .arp-toggle {
+    font-size: 11px; color: var(--text-muted); cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    transition: color 0.2s;
+  }
+  .arp-toggle:hover { color: var(--text-secondary); }
+  .arp-table { display: none; }
+  .arp-table.open { display: block; }
+  .arp-table-inner { max-height: 200px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+  .arp-row {
+    display: grid; grid-template-columns: 130px 1fr 80px;
+    gap: 10px; padding: 7px 12px; border-radius: 7px; font-size: 11px;
+    transition: background 0.2s;
+  }
+  .arp-row:hover { background: rgba(255,255,255,0.02); }
+  .arp-row.header { color: var(--text-muted); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .arp-ip { font-family: 'JetBrains Mono', monospace; color: var(--text-primary); }
+  .arp-mac { font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); }
+  .arp-type { color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -565,6 +682,49 @@
       <button class="scan-btn" id="scanBtn" onclick="scanAll()">SCAN NOW</button>
     </div>
 
+    <!-- IP Conflict Detection -->
+    <div class="conflict-section">
+      <div class="conflict-header">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          IP Conflict Detection
+        </h3>
+        <div class="conflict-actions">
+          <button class="conflict-btn quick" id="conflictQuickBtn" onclick="checkIPConflictsQuick()">Quick Check</button>
+          <button class="conflict-btn scan" id="conflictScanBtn" onclick="scanIPConflicts()">Full Scan</button>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="conflict-status-bar" id="conflictStatusBar">
+        <div class="conflict-status-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="conflict-status-text">
+          <div class="conflict-status-title" id="conflictStatusTitle">Not checked yet</div>
+          <div class="conflict-status-sub" id="conflictStatusSub">Click Quick Check to read ARP cache, or Full Scan to sweep all subnet</div>
+        </div>
+        <div class="conflict-meta" id="conflictMeta">--</div>
+      </div>
+
+      <!-- Conflict list -->
+      <div class="conflict-list" id="conflictList"></div>
+
+      <!-- ARP Table toggle -->
+      <div class="arp-table-wrap" id="arpTableWrap" style="display:none">
+        <div class="arp-toggle" onclick="toggleARPTable()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+          <span id="arpToggleLabel">Show ARP Table</span>
+        </div>
+        <div class="arp-table" id="arpTable">
+          <div class="arp-table-inner">
+            <div class="arp-row header"><span>IP Address</span><span>MAC Address</span><span>Type</span></div>
+            <div id="arpTableRows"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Incident History -->
     <div class="incident-section">
       <div class="incident-header">
@@ -599,11 +759,54 @@
       <div class="update-header">
         <h3>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-          Auto-Update
+          Update Program
         </h3>
         <span class="update-ver" id="currentVer">v--</span>
       </div>
-      <div class="update-form">
+
+      <!-- Method tabs -->
+      <div class="upd-tabs">
+        <button class="upd-tab active" id="tabFile" onclick="switchUpdTab('file')">Upload ZIP File</button>
+        <button class="upd-tab" id="tabUrl" onclick="switchUpdTab('url')">Install from URL</button>
+        <button class="upd-tab" id="tabGithub" onclick="switchUpdTab('github')">GitHub Release</button>
+      </div>
+
+      <!-- Panel: Upload ZIP -->
+      <div class="upd-panel active" id="panelFile">
+        <div class="drop-zone" id="dropZone"
+             ondragover="event.preventDefault(); this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleFileDrop(event)">
+          <input type="file" accept=".zip" onchange="handleFileSelect(this)" />
+          <div class="drop-zone-icon">📦</div>
+          <div class="drop-zone-title">Drop ZIP file here or click to browse</div>
+          <div class="drop-zone-sub">Select a NetGuard update zip file (.zip)</div>
+          <div class="drop-zone-file" id="selectedFileName"></div>
+        </div>
+        <div class="upd-progress" id="uploadProgress">
+          <div class="upd-progress-bar-wrap"><div class="upd-progress-bar" id="uploadProgressBar"></div></div>
+          <div class="upd-progress-text" id="uploadProgressText">Uploading...</div>
+        </div>
+        <div class="update-actions">
+          <button class="upd-btn install" id="uploadInstallBtn" onclick="uploadAndInstall()" disabled>Install Selected File</button>
+        </div>
+        <div class="upd-msg" id="uploadMsg"></div>
+      </div>
+
+      <!-- Panel: Install from URL -->
+      <div class="upd-panel" id="panelUrl">
+        <div class="update-row">
+          <label>Download URL</label>
+          <input type="text" id="directUrl" placeholder="https://example.com/netguard-v2.x.zip" />
+        </div>
+        <div class="update-actions">
+          <button class="upd-btn install" onclick="installFromUrl()">Download &amp; Install</button>
+        </div>
+        <div class="upd-msg" id="urlMsg"></div>
+      </div>
+
+      <!-- Panel: GitHub Release -->
+      <div class="upd-panel" id="panelGithub">
         <div class="update-row">
           <label>GitHub Owner</label>
           <input type="text" id="updOwner" placeholder="your-username" />
@@ -988,6 +1191,157 @@ function formatDowntime(sec) {
   return d + 'd ' + rh + 'h';
 }
 
+// ============================================================
+//  IP CONFLICT DETECTION
+// ============================================================
+let arpTableOpen = false;
+let lastARPEntries = [];
+
+async function checkIPConflictsQuick() {
+  setConflictScanning('Reading ARP cache...', true);
+  try {
+    const res = await fetch(API + '/api/ip-conflicts');
+    const data = await res.json();
+    renderConflictResult(data, false);
+    addLog('info', 'IP Conflict check: ' + (data.conflicts.length === 0 ? 'No conflicts found' : data.conflicts.length + ' conflict(s) found!'));
+  } catch (err) {
+    setConflictError(err.message);
+  }
+}
+
+async function scanIPConflicts() {
+  const btn = document.getElementById('conflictScanBtn');
+  const quickBtn = document.getElementById('conflictQuickBtn');
+  btn.disabled = true;
+  quickBtn.disabled = true;
+  setConflictScanning('Scanning subnet... (this may take ~10s)', true);
+  addLog('info', 'Starting IP conflict full scan (ping sweep)...');
+  try {
+    const res = await fetch(API + '/api/ip-conflicts/scan');
+    const data = await res.json();
+    if (data.error) {
+      setConflictError(data.error);
+    } else {
+      renderConflictResult(data, true);
+      addLog(data.conflicts.length === 0 ? 'ok' : 'warn',
+        'IP Scan complete: ' + (data.conflicts.length === 0 ? 'No conflicts' : data.conflicts.length + ' conflict(s) detected!'));
+    }
+  } catch (err) {
+    setConflictError(err.message);
+  } finally {
+    btn.disabled = false;
+    quickBtn.disabled = false;
+  }
+}
+
+function setConflictScanning(msg, lock) {
+  const bar = document.getElementById('conflictStatusBar');
+  bar.className = 'conflict-status-bar scanning';
+  bar.querySelector('.conflict-status-icon').innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+  document.getElementById('conflictStatusTitle').textContent = msg;
+  document.getElementById('conflictStatusSub').textContent = 'Please wait...';
+  document.getElementById('conflictMeta').textContent = '--';
+  document.getElementById('conflictList').innerHTML = '';
+  if (lock) {
+    document.getElementById('conflictQuickBtn').disabled = true;
+    document.getElementById('conflictScanBtn').disabled = true;
+  }
+}
+
+function setConflictError(msg) {
+  const bar = document.getElementById('conflictStatusBar');
+  bar.className = 'conflict-status-bar';
+  bar.querySelector('.conflict-status-icon').innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+  document.getElementById('conflictStatusTitle').textContent = 'Error';
+  document.getElementById('conflictStatusSub').textContent = msg;
+  document.getElementById('conflictMeta').textContent = '--';
+  document.getElementById('conflictQuickBtn').disabled = false;
+  document.getElementById('conflictScanBtn').disabled = false;
+}
+
+function renderConflictResult(data, wasFullScan) {
+  const bar = document.getElementById('conflictStatusBar');
+  const hasConflicts = data.conflicts && data.conflicts.length > 0;
+  const scanMs = data.scanTime || 0;
+  const scanType = wasFullScan ? 'Full Scan' : 'ARP Cache';
+
+  // Status bar
+  if (hasConflicts) {
+    bar.className = 'conflict-status-bar found';
+    bar.querySelector('.conflict-status-icon').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    document.getElementById('conflictStatusTitle').style.color = 'var(--red)';
+    document.getElementById('conflictStatusTitle').textContent = data.conflicts.length + ' IP Conflict(s) Detected!';
+    document.getElementById('conflictStatusSub').textContent =
+      'Same IP address is being used by multiple devices. This can cause network instability.';
+  } else {
+    bar.className = 'conflict-status-bar clean';
+    bar.querySelector('.conflict-status-icon').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+    document.getElementById('conflictStatusTitle').style.color = 'var(--green)';
+    document.getElementById('conflictStatusTitle').textContent = 'No IP Conflicts Found';
+    document.getElementById('conflictStatusSub').textContent =
+      (wasFullScan ? 'Full subnet scan complete. ' : 'ARP cache checked. ') +
+      'All ' + (data.arpCount || 0) + ' devices have unique IP addresses.';
+  }
+  document.getElementById('conflictMeta').textContent = scanType + ' • ' + scanMs + 'ms';
+
+  // Conflict items
+  const listEl = document.getElementById('conflictList');
+  if (!hasConflicts) {
+    listEl.innerHTML = '';
+  } else {
+    listEl.innerHTML = data.conflicts.map(c => `
+      <div class="conflict-item">
+        <div class="conflict-item-head">
+          <div class="conflict-ip">${c.ip}</div>
+          ${c.isOwnIP ? '<div class="conflict-item-own">THIS MACHINE</div>' : ''}
+        </div>
+        <div class="conflict-macs">
+          ${c.macs.map(m => `
+            <div class="conflict-mac-row">
+              <div class="conflict-mac-val">${m.mac}</div>
+              <div class="conflict-mac-src ${m.source === 'local' ? 'local' : ''}">${m.source}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ARP table
+  if (data.arpCount > 0) {
+    document.getElementById('arpTableWrap').style.display = 'block';
+    // Rebuild from ownInterfaces + arpEntries not directly returned, store count only
+    // For display we need to re-fetch or pass entries — use ownInterfaces
+    lastARPEntries = (data.ownInterfaces || []).map(e => ({ ip: e.ip, mac: e.mac, type: 'local' }));
+  }
+
+  // Re-enable buttons
+  document.getElementById('conflictQuickBtn').disabled = false;
+  document.getElementById('conflictScanBtn').disabled = false;
+}
+
+function toggleARPTable() {
+  arpTableOpen = !arpTableOpen;
+  const tableEl = document.getElementById('arpTable');
+  const labelEl = document.getElementById('arpToggleLabel');
+  tableEl.className = 'arp-table' + (arpTableOpen ? ' open' : '');
+  labelEl.textContent = arpTableOpen ? 'Hide ARP Table' : 'Show ARP Table';
+
+  if (arpTableOpen && lastARPEntries.length > 0) {
+    document.getElementById('arpTableRows').innerHTML = lastARPEntries.map(e => `
+      <div class="arp-row">
+        <span class="arp-ip">${e.ip}</span>
+        <span class="arp-mac">${e.mac}</span>
+        <span class="arp-type">${e.type}</span>
+      </div>
+    `).join('');
+  }
+}
+
 // Refresh incidents after each scan
 const origScanAll = scanAll;
 // (incidents auto-refresh is handled inside scanAll's finally block)
@@ -1127,6 +1481,170 @@ async function installUpdate() {
 
 // Load update config on init
 setTimeout(() => loadUpdateConfig(), 1000);
+
+// ── Tab switcher ──
+function switchUpdTab(tab) {
+  ['file', 'url', 'github'].forEach(t => {
+    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+    document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+  });
+}
+
+// ── File upload ──
+let selectedUpdateFile = null;
+
+function handleFileSelect(input) {
+  if (input.files && input.files[0]) setUpdateFile(input.files[0]);
+}
+
+function handleFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  const file = event.dataTransfer.files[0];
+  if (file) setUpdateFile(file);
+}
+
+function setUpdateFile(file) {
+  if (!file.name.endsWith('.zip')) {
+    document.getElementById('uploadMsg').textContent = 'Please select a .zip file';
+    document.getElementById('uploadMsg').style.color = 'var(--red)';
+    return;
+  }
+  selectedUpdateFile = file;
+  const nameEl = document.getElementById('selectedFileName');
+  nameEl.textContent = '📦 ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)';
+  nameEl.style.display = 'block';
+  document.getElementById('uploadInstallBtn').disabled = false;
+  document.getElementById('uploadMsg').textContent = '';
+}
+
+async function uploadAndInstall() {
+  if (!selectedUpdateFile) return;
+
+  const msgEl = document.getElementById('uploadMsg');
+  const btn = document.getElementById('uploadInstallBtn');
+  const progressEl = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('uploadProgressBar');
+  const progressText = document.getElementById('uploadProgressText');
+
+  btn.disabled = true;
+  progressEl.className = 'upd-progress show';
+  progressBar.style.width = '0%';
+  progressText.textContent = 'Reading file...';
+  msgEl.textContent = '';
+  addLog('info', 'Uploading update file: ' + selectedUpdateFile.name);
+
+  try {
+    const arrayBuffer = await selectedUpdateFile.arrayBuffer();
+
+    progressBar.style.width = '30%';
+    progressText.textContent = 'Uploading to server...';
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/api/update/upload');
+    xhr.setRequestHeader('Content-Type', 'application/zip');
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 60) + 30;
+        progressBar.style.width = pct + '%';
+        progressText.textContent = 'Uploading ' + Math.round(e.loaded / 1024) + ' KB / ' + Math.round(e.total / 1024) + ' KB';
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (data.ok) {
+          progressBar.style.width = '100%';
+          progressText.textContent = 'Installed! App will restart in a few seconds...';
+          msgEl.textContent = 'Update installed successfully — restarting...';
+          msgEl.style.color = 'var(--green)';
+          addLog('ok', 'Upload update installed — restarting...');
+
+          setTimeout(() => {
+            progressText.textContent = 'Reconnecting...';
+            const retryInterval = setInterval(async () => {
+              try {
+                const r = await fetch(API + '/api/version');
+                if (r.ok) { clearInterval(retryInterval); window.location.reload(); }
+              } catch {}
+            }, 2000);
+          }, 5000);
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (e) {
+        progressEl.className = 'upd-progress';
+        msgEl.textContent = 'Error: ' + e.message;
+        msgEl.style.color = 'var(--red)';
+        btn.disabled = false;
+      }
+    };
+
+    xhr.onerror = () => {
+      progressEl.className = 'upd-progress';
+      msgEl.textContent = 'Upload failed — network error';
+      msgEl.style.color = 'var(--red)';
+      btn.disabled = false;
+    };
+
+    xhr.send(arrayBuffer);
+
+  } catch (e) {
+    progressEl.className = 'upd-progress';
+    msgEl.textContent = 'Error: ' + e.message;
+    msgEl.style.color = 'var(--red)';
+    btn.disabled = false;
+  }
+}
+
+// ── Install from URL ──
+async function installFromUrl() {
+  const url = document.getElementById('directUrl').value.trim();
+  const msgEl = document.getElementById('urlMsg');
+
+  if (!url || !url.startsWith('http')) {
+    msgEl.textContent = 'Please enter a valid URL (http/https)';
+    msgEl.style.color = 'var(--red)';
+    return;
+  }
+
+  msgEl.textContent = 'Downloading and installing...';
+  msgEl.style.color = 'var(--blue)';
+  addLog('info', 'Installing from URL: ' + url);
+
+  try {
+    const res = await fetch(API + '/api/update/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ downloadUrl: url }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      msgEl.textContent = 'Downloading... App will restart when done.';
+      msgEl.style.color = 'var(--green)';
+      addLog('ok', 'URL update queued — restarting when done...');
+
+      setTimeout(() => {
+        msgEl.textContent = 'Reconnecting...';
+        const retryInterval = setInterval(async () => {
+          try {
+            const r = await fetch(API + '/api/version');
+            if (r.ok) { clearInterval(retryInterval); window.location.reload(); }
+          } catch {}
+        }, 2000);
+      }, 8000);
+    } else {
+      msgEl.textContent = 'Failed: ' + (data.error || 'Unknown error');
+      msgEl.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    msgEl.textContent = 'Error: ' + e.message;
+    msgEl.style.color = 'var(--red)';
+  }
+}
 
 // ============================================================
 //  TELEGRAM SETTINGS

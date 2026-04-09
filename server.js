@@ -858,7 +858,8 @@ app.post('/api/update/install', (req, res) => {
       }
       // Restart after short delay
       setTimeout(() => {
-        process.exit(0); // Electron will restart if configured
+        process.emit('netguard-restart'); // Electron relaunch via main.js
+        setTimeout(() => process.exit(0), 500); // fallback for plain node
       }, 2000);
     })
     .catch((err) => {
@@ -870,6 +871,49 @@ app.post('/api/update/install', (req, res) => {
 app.get('/api/version', (req, res) => {
   res.json({ version: CURRENT_VERSION });
 });
+
+// POST /api/update/upload — upload zip file directly (no GitHub needed)
+app.post('/api/update/upload',
+  express.raw({ type: ['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], limit: '200mb' }),
+  async (req, res) => {
+    if (!req.body || req.body.length === 0) {
+      return res.json({ ok: false, error: 'No file data received' });
+    }
+
+    res.json({ ok: true, message: 'Received file, installing...' });
+
+    const tmpZip = path.join(os.tmpdir(), 'netguard-update.zip');
+    const tmpDir = path.join(os.tmpdir(), 'netguard-update-extract');
+
+    try {
+      fs.writeFileSync(tmpZip, req.body);
+      console.log(`[UPDATE] Uploaded zip: ${req.body.length} bytes`);
+
+      await extractAndInstall(tmpZip, tmpDir);
+      console.log('[UPDATE] Upload install complete, restarting...');
+
+      if (TELEGRAM.enabled) {
+        const time = new Date().toLocaleString('th-TH', { hour12: false });
+        sendTelegram(
+          `🔄 <b>NetGuard — Updated (Manual Upload)</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `⏰ Time: ${time}\n` +
+          `📦 Manual zip update installed\n` +
+          `🔃 Restarting...\n` +
+          `━━━━━━━━━━━━━━━━━━━━`
+        );
+      }
+
+      setTimeout(() => {
+        process.emit('netguard-restart');
+        setTimeout(() => process.exit(0), 500);
+      }, 2000);
+
+    } catch (err) {
+      console.error('[UPDATE] Upload install failed:', err.message);
+    }
+  }
+);
 
 // ── Download file following redirects ──
 function downloadFile(url, destPath) {
@@ -962,6 +1006,193 @@ function compareVersions(a, b) {
   }
   return 0;
 }
+
+// ============================================================
+//  IP CONFLICT DETECTION
+// ============================================================
+
+// Parse ARP table from OS
+function parseARPTable() {
+  return new Promise((resolve) => {
+    const isWin = process.platform === 'win32';
+    const cmd = isWin ? 'arp -a' : 'arp -n';
+
+    exec(cmd, { timeout: 10000 }, (error, stdout) => {
+      if (error) { resolve([]); return; }
+
+      const entries = [];
+      const lines = stdout.split('\n');
+
+      if (isWin) {
+        // Windows: "  192.168.1.1    aa-bb-cc-dd-ee-ff    dynamic"
+        for (const line of lines) {
+          const match = line.match(/\s+([\d.]+)\s+([0-9a-f-]{17})\s+(\w+)/i);
+          if (match) {
+            const mac = match[2].toLowerCase().replace(/-/g, ':');
+            if (mac !== 'ff:ff:ff:ff:ff:ff' && mac !== '00:00:00:00:00:00') {
+              entries.push({ ip: match[1], mac, type: match[3].toLowerCase() });
+            }
+          }
+        }
+      } else {
+        // Linux: "192.168.1.1 ether aa:bb:cc:dd:ee:ff C eth0"
+        for (const line of lines) {
+          const match = line.match(/([\d.]+)\s+ether\s+([0-9a-f:]{17})/i);
+          if (match) {
+            const mac = match[2].toLowerCase();
+            if (mac !== 'ff:ff:ff:ff:ff:ff' && mac !== '00:00:00:00:00:00') {
+              entries.push({ ip: match[1], mac, type: 'dynamic' });
+            }
+          }
+        }
+      }
+
+      resolve(entries);
+    });
+  });
+}
+
+// Ping sweep subnet to populate ARP cache (batched, max 50 concurrent)
+async function pingSweepSubnet(baseIP) {
+  const isWin = process.platform === 'win32';
+  const batchSize = 50;
+
+  function pingOne(i) {
+    return new Promise(res => {
+      const ip = `${baseIP}.${i}`;
+      const cmd = isWin ? `ping -n 1 -w 300 ${ip}` : `ping -c 1 -W 1 ${ip}`;
+      exec(cmd, { timeout: 1000 }, () => res());
+    });
+  }
+
+  for (let start = 1; start <= 254; start += batchSize) {
+    const batch = [];
+    for (let i = start; i < start + batchSize && i <= 254; i++) {
+      batch.push(pingOne(i));
+    }
+    await Promise.allSettled(batch);
+  }
+}
+
+// Detect IP conflicts: same IP with different MACs
+async function detectIPConflicts() {
+  const startTime = Date.now();
+
+  // Get own network interfaces
+  const interfaces = os.networkInterfaces();
+  const ownEntries = [];
+  const ownIPs = new Set();
+
+  for (const [name, addrs] of Object.entries(interfaces)) {
+    if (name.toLowerCase().includes('loopback') || name === 'lo') continue;
+    for (const addr of addrs) {
+      if (addr.family === 'IPv4' && !addr.internal) {
+        const mac = addr.mac ? addr.mac.toLowerCase() : '';
+        if (mac && mac !== '00:00:00:00:00:00') {
+          ownEntries.push({ ip: addr.address, mac, type: 'local', interface: name });
+          ownIPs.add(addr.address);
+        }
+      }
+    }
+  }
+
+  // Get ARP table
+  const arpEntries = await parseARPTable();
+
+  // Build IP → list of unique MACs map
+  const ipToMacs = {};
+
+  for (const entry of [...ownEntries, ...arpEntries]) {
+    if (!entry.mac) continue;
+    if (!ipToMacs[entry.ip]) ipToMacs[entry.ip] = [];
+    if (!ipToMacs[entry.ip].find(e => e.mac === entry.mac)) {
+      ipToMacs[entry.ip].push({ mac: entry.mac, source: entry.type || 'arp' });
+    }
+  }
+
+  // Conflicts = IPs with more than one unique MAC
+  const conflicts = [];
+  for (const [ip, macs] of Object.entries(ipToMacs)) {
+    if (macs.length > 1) {
+      conflicts.push({ ip, macs, isOwnIP: ownIPs.has(ip) });
+    }
+  }
+
+  return {
+    conflicts,
+    arpCount: arpEntries.length,
+    ownInterfaces: ownEntries,
+    scanTime: Date.now() - startTime,
+    timestamp: new Date().toISOString(),
+    scanned: false,
+  };
+}
+
+function formatIPConflictAlert(conflicts) {
+  const time = new Date().toLocaleString('th-TH', { hour12: false });
+  const details = conflicts.map(c =>
+    `• IP: ${c.ip}\n  MACs: ${c.macs.map(m => m.mac).join(' vs ')}`
+  ).join('\n');
+
+  return `⚠️ <b>NetGuard — IP Conflict Detected!</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `⏰ Time: ${time}\n` +
+    `🔢 Conflicts: ${conflicts.length}\n` +
+    `📋 Details:\n${details}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `⚠️ IP conflict can cause network instability!`;
+}
+
+// GET /api/ip-conflicts — quick check from current ARP cache
+app.get('/api/ip-conflicts', async (req, res) => {
+  try {
+    const result = await detectIPConflicts();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+let ipScanInProgress = false;
+
+// GET /api/ip-conflicts/scan — active ping sweep then conflict check
+app.get('/api/ip-conflicts/scan', async (req, res) => {
+  if (ipScanInProgress) {
+    return res.json({ error: 'Scan already in progress, please wait.' });
+  }
+  ipScanInProgress = true;
+
+  try {
+    // Sweep each /24 subnet found on local interfaces
+    const interfaces = os.networkInterfaces();
+    for (const [name, addrs] of Object.entries(interfaces)) {
+      if (name.toLowerCase().includes('loopback') || name === 'lo') continue;
+      for (const addr of addrs) {
+        if (addr.family === 'IPv4' && !addr.internal) {
+          const maskParts = addr.netmask.split('.');
+          if (maskParts[3] === '0') {
+            const baseIP = addr.address.split('.').slice(0, 3).join('.');
+            await pingSweepSubnet(baseIP);
+          }
+        }
+      }
+    }
+
+    const result = await detectIPConflicts();
+    result.scanned = true;
+
+    // Alert via Telegram if conflicts found
+    if (result.conflicts.length > 0 && TELEGRAM.enabled) {
+      sendTelegram(formatIPConflictAlert(result.conflicts));
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    ipScanInProgress = false;
+  }
+});
 
 // ============================================================
 //  Start Server
