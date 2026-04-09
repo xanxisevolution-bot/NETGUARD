@@ -889,7 +889,7 @@ function init() {
   setInterval(updateClock, 1000);
   document.getElementById('initTime').textContent = timeNow();
   setTimeout(scanAll, 500);
-  autoInterval = setInterval(scanAll, 10000);
+  autoInterval = setInterval(scanAll, 30000);
   // Load incident history
   setTimeout(() => loadIncidents(1), 1500);
   // Load Telegram settings

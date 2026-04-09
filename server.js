@@ -26,7 +26,7 @@ const CONFIG = {
   DNS_SECONDARY: '1.1.1.1',        // Cloudflare DNS
   ISP_CHECK_HOST: 'www.google.com', // HTTP check
   PING_TIMEOUT: 3,                  // seconds
-  PING_COUNT: 2,                    // number of pings
+  PING_COUNT: 4,                    // number of pings
 };
 
 // ── Telegram Config (saved to file) ──
@@ -37,7 +37,7 @@ let TELEGRAM = {
   chatId: '',        // from @userinfobot or @getidsbot
   notifyDown: true,
   notifyRestore: true,
-  cooldownMinutes: 2,  // minimum minutes between repeat alerts
+  cooldownMinutes: 5,  // minimum minutes between repeat alerts
 };
 loadTelegramConfig();
 
@@ -211,6 +211,8 @@ if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
 // Track incident state (for duration tracking)
 let currentIncident = null;  // { startTime, type, diagnosis }
+let consecutiveDown = 0;     // must fail N scans in a row before alerting
+const CONSECUTIVE_THRESHOLD = 2;
 
 function getLogFilePath(type) {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -252,7 +254,15 @@ function trackIncident(result) {
   const isDown = result.overall !== 'online';
 
   if (isDown && !currentIncident) {
-    // NEW incident starts
+    consecutiveDown++;
+
+    if (consecutiveDown < CONSECUTIVE_THRESHOLD) {
+      console.log(`[INCIDENT] Down ${consecutiveDown}/${CONSECUTIVE_THRESHOLD} — waiting for confirmation`);
+      return;
+    }
+
+    // NEW incident confirmed (N consecutive failures)
+    consecutiveDown = 0;
     currentIncident = {
       startTime: result.timestamp,
       type: result.lan.status === 'offline' ? 'LAN' :
@@ -271,14 +281,18 @@ function trackIncident(result) {
       endTime: null,
       downtime: null,
     });
-    console.log(`[INCIDENT] DOWN at ${currentIncident.startTime}: ${currentIncident.type}`);
+    console.log(`[INCIDENT] DOWN confirmed at ${currentIncident.startTime}: ${currentIncident.type}`);
 
     // ── TELEGRAM: Send DOWN alert ──
     if (TELEGRAM.notifyDown) {
       sendTelegram(formatDownAlert(currentIncident.type, currentIncident.diagnosis));
     }
 
+  } else if (isDown && currentIncident) {
+    consecutiveDown = 0; // already tracking, reset counter
+
   } else if (!isDown && currentIncident) {
+    consecutiveDown = 0;
     // Incident RESOLVED
     const endTime = result.timestamp;
     const startMs = new Date(currentIncident.startTime).getTime();
@@ -664,7 +678,7 @@ function pingHost(host, label) {
       const lossNum = parseInt(packetLoss);
       let status = 'online';
       if (lossNum >= 100) status = 'offline';
-      else if (lossNum > 20 || (latency && latency > 200)) status = 'warning';
+      else if (lossNum >= 50 || (latency && latency > 400)) status = 'warning';
 
       resolve({
         status,
