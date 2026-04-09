@@ -1,6 +1,6 @@
 {
   "name": "netguard-monitor",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "NetGuard - Internet Monitor Dashboard with Real Diagnostics",
   "main": "main.js",
   "scripts": {
